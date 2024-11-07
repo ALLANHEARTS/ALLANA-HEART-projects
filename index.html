@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALLAN@HEARTS MINES PREDICTOR PRO 3.7</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background-color: #000;
+            color: #32cd32;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #matrix-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 90%;
+            margin: 20px auto;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            border: 2px solid #32cd32;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(50, 205, 50, 0.3);
+            position: relative;
+            z-index: 1;
+        }
+
+        .screen {
+            display: none;
+            text-align: center;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin: 20px auto;
+            max-width: 400px;
+        }
+
+        .grid-item {
+            aspect-ratio: 1;
+            background: rgba(50, 205, 50, 0.1);
+            border: 1px solid #32cd32;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .grid-item:hover {
+            background: rgba(50, 205, 50, 0.2);
+            transform: scale(1.05);
+        }
+
+        .grid-item.selected {
+            background: rgba(255, 0, 0, 0.3);
+            border-color: #ff0000;
+        }
+
+        .grid-item.safe {
+            background: rgba(23, 227, 23, 0.801);
+            border-color: #32cd32e2;
+            animation: pulse 2s infinite;
+        }
+
+        .grid-item.mine {
+            background: rgba(255, 0, 0, 0.774);
+            border-color: #ff0000d7;
+        }
+
+        .grid-item.incorrect-prediction {
+            background: rgba(255, 165, 0, 0.3);
+            border-color: #ffa500;
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .stats-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
+            border: 1px solid #32cd32;
+        }
+
+        .prediction-stats {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid #32cd32;
+        }
+
+        .stat-item {
+            padding: 10px;
+            background: rgba(50, 205, 50, 0.1);
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .input-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
+            border: 1px solid #32cd32;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+
+        input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #32cd32;
+            color: #32cd32;
+            padding: 10px;
+            border-radius: 4px;
+            width: 100%;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+        }
+
+        button {
+            background: rgba(50, 205, 50, 0.2);
+            border: 1px solid #32cd32;
+            color: #32cd32;
+            padding: 12px 24px;
+            margin: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: rgba(27, 221, 27, 0.507);
+            transform: translateY(-2px);
+            box-shadow: 0 2px 8px rgba(50, 205, 50, 0.735);
+        }
+
+        .title {
+            font-size: 2em;
+            margin: 20px 0;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #32cd32;
+            text-shadow: 0 0 10px rgba(50, 205, 50, 0.5);
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #32cd32;
+            border-radius: 5px;
+            color: #32cd32;
+            display: none;
+            animation: slideIn 0.3s ease;
+            z-index: 1000;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .watermark {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 14px;
+            opacity: 0.5;
+            text-shadow: 0 0 5px rgba(12, 246, 12, 0.922);
+        }
+
+        .ai-status {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #32cd32;
+            border-radius: 5px;
+            font-size: 0.9em;
+            z-index: 1000;
+        }
+
+        .ai-status .indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        .ai-status .indicator.learning {
+            background-color: #32cd32;
+        }
+
+        .prediction-accuracy {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 10px 0;
+            font-size: 1.2em;
+        }
+
+        .accuracy-bar {
+            width: 200px;
+            height: 20px;
+            background: rgba(50, 205, 50, 0.1);
+            border: 1px solid #32cd32;
+            border-radius: 10px;
+            margin: 0 10px;
+            overflow: hidden;
+        }
+
+        .accuracy-fill {
+            height: 100%;
+            background: #32cd32;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="matrix-canvas"></canvas>
+    
+    <div class="ai-status">
+        <div class="indicator learning"></div>
+        AI System Active
+    </div>
+
+    <div class="container">
+        <div class="title">ALLAN@HEARTS MINES PREDICTOR PRO 3.0</div>
+        
+        <div id="setup-screen" class="screen active">
+            <div class="input-group">
+                <div>
+                    <label>Mines per Round:</label>
+                    <input type="number" id="mines-count" value="3" min="1" max="24">
+                </div>
+                <div>
+                    <label>Safe Tiles to Predict:</label>
+                    <input type="number" id="safe-tiles-count" value="5" min="1" max="15">
+                </div>
+                <div>
+                    <label>Rounds to Analyze:</label>
+                    <input type="number" id="rounds-count" value="5" min="1" max="30">
+                </div>
+            </div>
+            
+            <div class="stats-panel">
+                <div class="stat-item">
+                    <div>Success Rate</div>
+                    <div id="success-rate" class="stat-value">0%</div>
+                </div>
+                <div class="stat-item">
+                    <div>Pattern Strength</div>
+                    <div id="pattern-strength" class="stat-value">0%</div>
+                </div>
+                <div class="stat-item">
+                    <div>Total Games</div>
+                    <div id="total-games" class="stat-value">0</div>
+                </div>
+                <div class="stat-item">
+                    <div>AI Confidence</div>
+                    <div id="ai-confidence" class="stat-value">0%</div>
+                </div>
+            </div>
+            
+            <button id="start-button">Start Analysis</button>
+            <button id="clear-data">Clear History</button>
+        </div>
+
+        <div id="input-screen" class="screen">
+            <h3>Round <span id="current-round">1</span> of <span id="total-rounds">5</span></h3>
+            <p>Select the mines from the previous game</p>
+            <div id="input-grid" class="grid"></div>
+            <button id="submit-round">Submit Round</button>
+            <button id="back-to-setup">Back</button>
+        </div>
+
+        <div id="prediction-screen" class="screen">
+            <h3>Predicted Safe Tiles</h3>
+            <p>Click tiles to mark actual mine locations after testing predictions</p>
+            <div id="prediction-grid" class="grid"></div>
+            
+            <div class="prediction-stats">
+                <div class="prediction-accuracy">
+                    Prediction Accuracy:
+                    <div class="accuracy-bar">
+                        <div id="accuracy-fill" class="accuracy-fill"></div>
+                    </div>
+                    <span id="prediction-accuracy">-</span>
+                </div>
+                <div class="stat">Confidence Level: <span id="confidence-level">0%</span></div>
+                <div class="stat">Correct Predictions: <span id="correct-predictions">-</span></div>
+                <div class="stat">Incorrect Predictions: <span id="incorrect-predictions">-</span></div>
+            </div>
+            
+            <button id="verify-prediction">Verify Prediction</button>
+            <button id="new-prediction">New Prediction</button>
+        </div>
+    </div>
+
+    <div id="notification" class="notification"></div>
+    <div class="watermark">ALLAN@HEARTS Mines Predictor Pro v3.0</div>
+
+    <script>
+        // Enhanced AI System
+        class MinesPredictorAI {
+            constructor() {
+                this.patterns = new Map();
+                this.weights = {
+                    frequency: 0.3,
+                    pattern: 0.25,
+                    position: 0.15,
+                    cluster: 0.2,
+                    temporal: 0.1
+                };
+                this.learningRate = 0.01;
+                this.patternSize = 3;
+                this.confidence = 0;
+                this.successfulPredictions = 0;
+                this.totalPredictions = 0;
+            }
+
+            learn(pattern, success) {
+                const currentWeight = this.patterns.get(pattern) || 0.5;
+                const newWeight = success 
+                    ? currentWeight + this.learningRate * (1 - currentWeight)
+                    : currentWeight - this.learningRate * currentWeight;
+                this.patterns.set(pattern, newWeight);
+                
+                this.totalPredictions++;
+                if (success) this.successfulPredictions++;
+                this.confidence = (this.successfulPredictions / Math.max(1, this.totalPredictions)) * 100;
+            }
+
+            getPatternKey(tiles) {
+                return tiles.sort((a, b) => a - b).join(',');
+            }
+
+            analyzeClusterPatterns(rounds) {
+                const clusterScores = new Array(25).fill(0);
+                
+                rounds.forEach(round => {
+                    round.forEach(mine => {
+                        const adjacent = this.getAdjacentTiles(mine);
+                        adjacent.forEach(adj => {
+                            if (round.includes(adj)) {
+                                clusterScores[mine - 1] += 1;
+                                clusterScores[adj - 1] += 1;
+                            }
+                        });
+                    });
+                });
+
+                return clusterScores;
+            }
+
+            getAdjacentTiles(tileIndex) {
+                const row = Math.floor((tileIndex - 1) / 5);
+                const col = (tileIndex - 1) % 5;
+                const adjacent = [];
+                
+                [[-1,0], [1,0], [0,-1], [0,1]].forEach(([dr, dc]) => {
+                    const newRow = row + dr;
+                    const newCol = col + dc;
+                    if (newRow >= 0 && newRow < 5 && newCol >= 0 && newCol < 5) {
+                        adjacent.push(newRow * 5 + newCol + 1);
+                    }
+                });
+                
+                return adjacent;
+            }
+
+            analyzeTemporalPatterns(rounds) {
+                const temporalScores = new Array(25).fill(0);
+                
+                for (let i = 1; i < rounds.length; i++) {
+                    const prevRound = rounds[i - 1];
+                    const currentRound = rounds[i];
+                    
+                    currentRound.forEach(mine => {
+                        if (prevRound.includes(mine)) {
+                            temporalScores[mine - 1] += 1;
+                        }
+                        this.getAdjacentTiles(mine).forEach(adj => {
+                            if (prevRound.includes(adj)) {
+                                temporalScores[mine - 1] += 0.5;
+                            }
+                        });
+                    });
+                }
+
+                return temporalScores;
+            }
+
+            calculatePositionalBias(position) {
+                const row = Math.floor((position - 1) / 5);
+                const col = (position - 1) % 5;
+                
+                const centerDistance = Math.sqrt(
+                    Math.pow(row - 2, 2) + Math.pow(col - 2, 2)
+                );
+                
+                const edgeBias = (row === 0 || row === 4 || col === 0 || col === 4) ? 1.5 : 1;
+                
+                return (1 - centerDistance / 3) * edgeBias;
+            }
+
+            predictSafeTiles(previousRounds, minesCount, safeTilesCount) {
+                const tileScores = new Array(25).fill(0).map((_, i) => ({
+                    index: i + 1,
+                    score: 0,
+                    confidence: 0
+                }));
+
+                const frequencyScores = new Array(25).fill(0);
+                previousRounds.forEach((round, idx) => {
+                    const recency = Math.exp(-0.2 * (previousRounds.length - idx - 1));
+                    round.forEach(mine => {
+                        frequencyScores[mine - 1] += recency;
+                    });
+                });
+
+                const patternScores = this.analyzeClusterPatterns(previousRounds);
+                const temporalScores = this.analyzeTemporalPatterns(previousRounds);
+
+                tileScores.forEach((tile, index) => {
+                    const frequency = frequencyScores[index];
+                    const pattern = patternScores[index];
+                    const temporal = temporalScores[index];
+                    const position = this.calculatePositionalBias(index + 1);
+
+                    tile.score = (
+                        (1 - frequency) * this.weights.frequency +
+                        (1 - pattern) * this.weights.pattern +
+                        (1 - temporal) * this.weights.temporal +
+                        position * this.weights.position
+                    );
+
+                    tile.confidence = Math.min(
+                        1,
+                        (previousRounds.length * 0.2) * 
+                        (1 - Math.abs(frequency - pattern) / 2)
+                    );
+                });
+
+                const meanScore = tileScores.reduce((sum, tile) => sum + tile.score, 0) / 25;
+                const stdDev = Math.sqrt(
+                    tileScores.reduce((sum, tile) => sum + Math.pow(tile.score - meanScore, 2), 0) / 25
+                );
+
+                return tileScores
+                    .sort((a, b) => (b.score * b.confidence) - (a.score * a.confidence))
+                    .slice(0, safeTilesCount)
+                    .map(tile => ({
+                        index: tile.index,
+                        confidence: tile.confidence * 100
+                    }));
+            }
+        }
+
+        // Matrix Animation
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        const fontSize = 14;
+        const columns = canvas.width / fontSize;
+        const drops = Array(Math.floor(columns)).fill(1);
+        const symbols = "01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン";
+
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#0F0';
+            ctx.font = fontSize + 'px monospace';
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = symbols[Math.floor(Math.random() * symbols.length)];
+                const x = i * fontSize;
+                const y = drops[i] * fontSize;
+                ctx.fillText(text, x, y);
+                
+                if (y > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+
+        setInterval(drawMatrix, 33);
+
+        // Game State
+        let currentRound = 1;
+        let totalRounds = 5;
+        let minesCount = 3;
+        let safeTilesCount = 5;
+        let previousRounds = JSON.parse(localStorage.getItem('previousRounds') || '[]');
+        let predictedSafeTiles = [];
+        let actualMineLocations = new Set();
+        let verificationMode = false;
+        const minesAI = new MinesPredictorAI();
+
+        // Utility Functions
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function showNotification(message, duration = 3000) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.style.display = 'block';
+            setTimeout(() => notification.style.display = 'none', duration);
+        }
+
+        function createGrid(containerId, interactive = true) {
+            const grid = document.getElementById(containerId);
+            grid.innerHTML = '';
+            
+            for (let i = 1; i <= 25; i++) {
+                const tile = document.createElement('div');
+                tile.className = 'grid-item';
+                tile.textContent = i;
+                
+                if (interactive) {
+                    tile.addEventListener('click', () => {
+                        if (containerId === 'prediction-grid' && !verificationMode) return;
+                        
+                        if (tile.classList.contains(containerId === 'prediction-grid' ? 'mine' : 'selected')) {
+                            tile.classList.remove(containerId === 'prediction-grid' ? 'mine' : 'selected');
+                            if (containerId === 'prediction-grid') {
+                                actualMineLocations.delete(parseInt(tile.textContent));
+                            }
+                        } else {
+                            const maxMines = containerId === 'prediction-grid' ? minesCount : minesCount;
+                            const selectedTiles = document.querySelectorAll(`#${containerId} .${containerId === 'prediction-grid' ? 'mine' : 'selected'}`);
+                            
+                            if (selectedTiles.length < maxMines) {
+                                tile.classList.add(containerId === 'prediction-grid' ? 'mine' : 'selected');
+                                if (containerId === 'prediction-grid') {
+                                    actualMineLocations.add(parseInt(tile.textContent));
+                                }
+                            } else {
+                                showNotification(`Maximum ${maxMines} mines allowed`);
+                            }
+                        }
+                    });
+                }
+                
+                grid.appendChild(tile);
+            }
+        }
+
+        function calculatePatternStrength(rounds) {
+            if (!rounds.length) return 0;
+            
+            const frequencies = new Array(25).fill(0);
+            rounds.forEach(round => {
+                round.forEach(tile => frequencies[tile - 1]++);
+            });
+            
+            const maxFreq = Math.max(...frequencies);
+            const avgFreq = frequencies.reduce((a, b) => a + b) / 25;
+            
+            return Math.round((maxFreq - avgFreq) / maxFreq * 100);
+        }
+
+        function updateStats() {
+            const totalGames = parseInt(localStorage.getItem('totalGames') || '0');
+            const patternStrength = calculatePatternStrength(previousRounds);
+            
+            document.getElementById('total-games').textContent = totalGames;
+            document.getElementById('pattern-strength').textContent = patternStrength + '%';
+            document.getElementById('success-rate').textContent = 
+                totalGames ? Math.round((parseInt(localStorage.getItem('successfulPredictions') || '0') / totalGames) * 100) + '%' : '0%';
+            document.getElementById('ai-confidence').textContent = 
+                Math.round(minesAI.confidence) + '%';
+        }
+
+        function showPrediction() {
+            createGrid('prediction-grid', true);
+            const predictions = minesAI.predictSafeTiles(previousRounds, minesCount, safeTilesCount);
+            predictedSafeTiles = predictions.map(p => p.index);
+            
+            predictedSafeTiles.forEach(tile => {
+                document.querySelector(`#prediction-grid div:nth-child(${tile})`).classList.add('safe');
+            });
+            
+            const confidence = calculatePatternStrength(previousRounds);
+            document.getElementById('confidence-level').textContent = confidence + '%';
+            
+            verificationMode = true;
+            document.getElementById('correct-predictions').textContent = '-';
+            document.getElementById('incorrect-predictions').textContent = '-';
+            document.getElementById('prediction-accuracy').textContent = '-';
+            document.getElementById('accuracy-fill').style.width = '0%';
+            
+            showScreen('prediction-screen');
+        }
+
+        function verifyPredictions() {
+            let correctPredictions = 0;
+            let incorrectPredictions = 0;
+
+            predictedSafeTiles.forEach(tile => {
+                const tileElement = document.querySelector(`#prediction-grid div:nth-child(${tile})`);
+                if (actualMineLocations.has(tile)) {
+                    incorrectPredictions++;
+                    tileElement.classList.add('incorrect-prediction');
+                } else {
+                    correctPredictions++;
+                }
+            });
+
+            const accuracy = (correctPredictions / predictedSafeTiles.length) * 100;
+            
+            document.getElementById('correct-predictions').textContent = correctPredictions;
+            document.getElementById('incorrect-predictions').textContent = incorrectPredictions;
+            document.getElementById('prediction-accuracy').textContent = `${Math.round(accuracy)}%`;
+            document.getElementById('accuracy-fill').style.width = `${accuracy}%`;
+
+            minesAI.learn(minesAI.getPatternKey(predictedSafeTiles), accuracy >= 80);
+
+            const totalGames = parseInt(localStorage.getItem('totalGames') || '0') + 1;
+            const successfulPredictions = parseInt(localStorage.getItem('successfulPredictions') || '0') + 
+                (accuracy >= 80 ? 1 : 0);
+            
+            localStorage.setItem('totalGames', totalGames);
+            localStorage.setItem('successfulPredictions', successfulPredictions);
+
+            verificationMode = false;
+            updateStats();
+            
+            return accuracy;
+        }
+
+        // Event Listeners
+        document.getElementById('start-button').addEventListener('click', () => {
+            minesCount = parseInt(document.getElementById('mines-count').value);
+            safeTilesCount = parseInt(document.getElementById('safe-tiles-count').value);
+            totalRounds = parseInt(document.getElementById('rounds-count').value);
+
+            if (minesCount >= 25) {
+                showNotification('Too many mines! Maximum is 24 mines.');
+                return;
+            }
+
+            if (safeTilesCount > (25 - minesCount)) {
+                showNotification(`Cannot predict more safe tiles than available! Maximum is ${25 - minesCount}`);
+                return;
+            }
+
+            currentRound = 1;
+            document.getElementById('current-round').textContent = currentRound;
+            document.getElementById('total-rounds').textContent = totalRounds;
+            
+            createGrid('input-grid');
+            showScreen('input-screen');
+        });
+
+        document.getElementById('submit-round').addEventListener('click', () => {
+            const selectedTiles = Array.from(document.querySelectorAll('#input-grid .selected'))
+                .map(tile => parseInt(tile.textContent));
+            
+            if (selectedTiles.length !== minesCount) {
+                showNotification(`Please select exactly ${minesCount} mines`);
+                return;
+            }
+
+            previousRounds.push(selectedTiles);
+            localStorage.setItem('previousRounds', JSON.stringify(previousRounds));
+            
+            if (currentRound >= totalRounds) {
+                showPrediction();
+            } else {
+                currentRound++;
+                document.getElementById('current-round').textContent = currentRound;
+                createGrid('input-grid');
+            }
+        });
+
+        document.getElementById('verify-prediction').addEventListener('click', () => {
+            if (actualMineLocations.size !== minesCount) {
+                showNotification(`Please mark exactly ${minesCount} mines before verifying`);
+                return;
+            }
+            
+            const accuracy = verifyPredictions();
+            
+            if (accuracy >= 80) {
+                showNotification('High accuracy prediction! AI is learning from this success.', 3000);
+            } else if (accuracy >= 50) {
+                showNotification('Moderate accuracy. AI is adjusting its parameters.', 3000);
+            } else {
+                showNotification('Low accuracy. AI is learning from these mistakes.', 3000);
+            }
+        });
+
+        document.getElementById('new-prediction').addEventListener('click', () => {
+            verificationMode = false;
+            actualMineLocations.clear();
+            currentRound = 1;
+            document.getElementById('current-round').textContent = currentRound;
+            createGrid('input-grid');
+            showScreen('input-screen');
+        });
+
+        document.getElementById('clear-data').addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear all historical data?')) {
+                localStorage.clear();
+                previousRounds = [];
+                minesAI.patterns.clear();
+                minesAI.successfulPredictions = 0;
+                minesAI.totalPredictions = 0;
+                minesAI.confidence = 0;
+                updateStats();
+                showNotification('All data cleared');
+            }
+        });
+
+        document.getElementById('back-to-setup').addEventListener('click', () => {
+            showScreen('setup-screen');
+        });
+
+        // Initialize
+        updateStats();
+    </script>
+</body>
+</html
